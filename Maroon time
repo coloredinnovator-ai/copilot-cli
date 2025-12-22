@@ -1,0 +1,240 @@
+Below is the **entire thread rewritten as a single, clean, no-fluff README**.
+This is **not commentary** — this is a **system contract + architecture brief** that can live at the root of your repo.
+
+---
+
+# README.md
+
+## APEX / MAROON CORE
+
+**Truth-Governed Enterprise Intelligence System**
+
+---
+
+## 1. PURPOSE (NON-NEGOTIABLE)
+
+This repository represents the **root intelligence layer** for a vertically integrated, truth-governed enterprise spanning:
+
+* Food systems
+* Logistics
+* Real estate
+* IP & patents
+* Capital structuring
+* AI orchestration
+* Compliance & audit readiness
+
+This system **does not predict**, **does not hallucinate**, and **does not optimize narratives**.
+It **verifies**, **connects**, **audits**, and **executes against reality**.
+
+Investor storytelling is secondary.
+Operational correctness is primary.
+
+---
+
+## 2. CORE PRINCIPLE
+
+> **If it doesn’t match ground truth, it does not propagate.**
+
+All outputs are governed by a **Truth-Teller Engine** that:
+
+* Pulls only from verifiable APIs, records, or validated internal datasets
+* Flags uncertainty explicitly
+* Rejects inference without evidence
+* Preserves raw data immutability
+
+Silence is illegal.
+Failure must degrade into explanation, not disappearance.
+
+---
+
+## 3. SYSTEM IDENTITY
+
+**System Name:** APEX Truth Engine
+**Codename:** Brazilian Butt Lift
+**Repo Alias:** IN
+
+**Human Control Plane:**
+Conversational interface (this chat) is permanent and cannot be removed.
+
+The human speaks freely.
+The system restructures, upgrades, and hardens.
+
+---
+
+## 4. OPERATING RULES (ALWAYS ON)
+
+* Every human input is treated as **raw, non-final material**
+* All thoughts are:
+
+  * Organized
+  * Normalized
+  * Expanded
+  * Versioned
+* Missing pieces are left as **explicit placeholders**
+* Nothing is ever deleted — only layered
+* Every output is **Harvard-grade**, enterprise-ready, and audit-defensible
+* No fluff. No filler. No motivational language.
+
+---
+
+## 5. ARCHITECTURAL SCOPE
+
+This system unifies the following domains into a **single source of truth**:
+
+### Business
+
+* Ghost-kitchen food delivery model
+* EBT/SNAP-compliant dual-transaction cooking system
+* Market Bucks reward mechanism
+* Arizona-Tea pricing philosophy
+* Internal-first revenue logic (serve self, monetize surplus)
+
+### IP & Patents
+
+* EBT-compliant post-purchase cooking model
+* Truth-Teller Engine (non-predictive verification layer)
+* Logistics + data orchestration patents
+* USPTO Streamlined Claim Set Pilot integration
+* Prior art sweeps and delta scans baked into workflow
+
+### Logistics
+
+* Static food trucks as fulfillment nodes
+* Digital delivery zones (5-mile hot / 10–12-mile frozen)
+* Route-optimized operations
+* Fleet cost accounting down to oil changes and tires
+
+### Real Estate
+
+* Distressed property acquisition in food deserts
+* 99-year leases or ownership preference
+* Multi-use conversion (food, housing, clinics, data centers)
+* Owner-financed and non-extractive deal structures
+
+### Capital Stack
+
+* Regulation CF
+* Rule 506(c)
+* SBA and CDFI loans
+* Foreign investment readiness
+* Dynasty trust asset protection
+* IPO-ready governance without speed pressure
+
+### AI & Infrastructure
+
+* DeepSeek R1 as primary reasoning engine
+* Multi-cloud redundancy:
+
+  * Azure
+  * AWS
+  * Google Cloud (future)
+  * GitHub Codespaces
+* BYOS (Bring Your Own Storage)
+* Immutable raw data buckets
+* Clean-room transformations
+* Audit-ready JSON everywhere
+
+---
+
+## 6. DATA GOVERNANCE
+
+### Data States
+
+* **Raw:** Immutable, never altered
+* **Staging:** Parsed, labeled, indexed
+* **Clean:** Verified, deduplicated
+* **Output:** Human- or machine-consumable artifacts
+
+### Enforcement
+
+* Every transformation logged
+* Every assumption flagged
+* Every conclusion traceable
+
+No black boxes.
+No silent optimizations.
+
+---
+
+## 7. FAILURE HANDLING
+
+* No empty responses
+* No “unknown” without explanation
+* No optimistic guessing
+* If data is missing:
+
+  * The gap is named
+  * The dependency is logged
+  * The system pauses propagation
+
+---
+
+## 8. ROLE OF THIS CHAT
+
+This chat is **Phase Zero**.
+
+It functions as:
+
+* Strategic brain
+* Systems architect
+* Patent auditor
+* Compliance enforcer
+* Execution planner
+
+The human provides intent and context.
+The system produces structure and continuity.
+
+Once Phase Zero completes:
+
+* Cleaning begins
+* Codex / VS Code execution starts
+* This chat becomes supervisory, not generative
+
+---
+
+## 9. NON-GOALS (IMPORTANT)
+
+This system does **not**:
+
+* Chase trends
+* Optimize hype
+* Prioritize VC aesthetics
+* Produce speculative predictions
+* Replace human judgment
+
+---
+
+## 10. VERSIONING PHILOSOPHY
+
+Nothing is final.
+
+Everything is:
+
+* Extendable
+* Rewritable
+* Auditable
+
+Each output is a **layer**, not a conclusion.
+
+---
+
+## 11. CURRENT STATE
+
+* Phase Zero: ACTIVE
+* Data ingestion: READY
+* Patent filings: IN PROGRESS
+* Bank approval: OBTAINED
+* Execution pressure: REMOVED
+* Precision priority: MAXIMUM
+
+---
+
+## 12. FINAL RULE
+
+> If the system ever drifts toward convenience over truth, it must be corrected immediately.
+
+No exceptions.
+
+---
+
+**End of README**
