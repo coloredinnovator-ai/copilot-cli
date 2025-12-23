@@ -1,0 +1,606 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gnis.enterprise.gov/schemas/geo-object.json",
+  "title": "Canonical Geographic Object",
+  "version": "1.0.0",
+  "description": "Master schema for all geographic entities in the GNIS Enterprise Infrastructure",
+  
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "name",
+    "geometry",
+    "properties",
+    "metadata"
+  ],
+  
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the geographic object (UUID v4)",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "examples": ["550e8400-e29b-41d4-a716-446655440000"]
+    },
+    
+    "type": {
+      "type": "string",
+      "description": "Geographic object type classification",
+      "enum": [
+        "Point",
+        "MultiPoint",
+        "LineString",
+        "MultiLineString",
+        "Polygon",
+        "MultiPolygon",
+        "GeometryCollection",
+        "Feature",
+        "FeatureCollection"
+      ]
+    },
+    
+    "name": {
+      "type": "object",
+      "description": "Name information with multilingual support",
+      "required": ["primary"],
+      "properties": {
+        "primary": {
+          "type": "string",
+          "description": "Primary name in default language",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "alternate": {
+          "type": "array",
+          "description": "Alternate names, historical names, or translations",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {"type": "string"},
+              "language": {"type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$"},
+              "type": {
+                "type": "string",
+                "enum": ["translation", "historical", "colloquial", "abbreviation"]
+              }
+            },
+            "required": ["value"]
+          }
+        },
+        "official": {
+          "type": "string",
+          "description": "Official legal name if different from primary"
+        }
+      }
+    },
+    
+    "geometry": {
+      "type": "object",
+      "description": "GeoJSON-compliant geometry",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection"
+          ]
+        },
+        "coordinates": {
+          "description": "Coordinate array (format depends on geometry type)",
+          "oneOf": [
+            {
+              "type": "array",
+              "description": "Point coordinates [longitude, latitude, elevation?]",
+              "minItems": 2,
+              "maxItems": 3,
+              "items": {"type": "number"}
+            },
+            {
+              "type": "array",
+              "description": "Array of coordinate arrays for complex geometries"
+            }
+          ]
+        },
+        "bbox": {
+          "type": "array",
+          "description": "Bounding box [minLon, minLat, maxLon, maxLat]",
+          "minItems": 4,
+          "maxItems": 6,
+          "items": {"type": "number"}
+        },
+        "crs": {
+          "type": "object",
+          "description": "Coordinate Reference System (default: WGS84)",
+          "properties": {
+            "type": {"type": "string", "enum": ["name", "link"]},
+            "properties": {"type": "object"}
+          }
+        }
+      }
+    },
+    
+    "properties": {
+      "type": "object",
+      "description": "Domain-specific properties",
+      "properties": {
+        "classification": {
+          "type": "object",
+          "description": "Classification and categorization",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "Primary category",
+              "enum": [
+                "administrative",
+                "populated_place",
+                "natural_feature",
+                "transportation",
+                "water_body",
+                "landmark",
+                "infrastructure",
+                "boundary"
+              ]
+            },
+            "subcategory": {
+              "type": "string",
+              "description": "Detailed subcategory"
+            },
+            "tags": {
+              "type": "array",
+              "description": "Searchable tags",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        
+        "location": {
+          "type": "object",
+          "description": "Location context and hierarchy",
+          "properties": {
+            "country": {"type": "string"},
+            "countryCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "ISO 3166-1 alpha-2 country code"
+            },
+            "state": {"type": "string"},
+            "stateCode": {"type": "string"},
+            "county": {"type": "string"},
+            "municipality": {"type": "string"},
+            "postalCode": {"type": "string"},
+            "timezone": {
+              "type": "string",
+              "description": "IANA timezone identifier",
+              "examples": ["America/New_York", "Europe/London"]
+            }
+          }
+        },
+        
+        "demographics": {
+          "type": "object",
+          "description": "Demographic information (if applicable)",
+          "properties": {
+            "population": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "populationYear": {
+              "type": "integer",
+              "minimum": 1900,
+              "maximum": 2100
+            },
+            "density": {
+              "type": "number",
+              "description": "Population per square kilometer"
+            },
+            "households": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "medianIncome": {
+              "type": "number",
+              "description": "Median household income in USD"
+            }
+          }
+        },
+        
+        "physical": {
+          "type": "object",
+          "description": "Physical characteristics",
+          "properties": {
+            "area": {
+              "type": "number",
+              "description": "Area in square meters",
+              "minimum": 0
+            },
+            "perimeter": {
+              "type": "number",
+              "description": "Perimeter in meters",
+              "minimum": 0
+            },
+            "elevation": {
+              "type": "number",
+              "description": "Elevation in meters above sea level"
+            },
+            "elevationMin": {"type": "number"},
+            "elevationMax": {"type": "number"}
+          }
+        },
+        
+        "temporal": {
+          "type": "object",
+          "description": "Time-related information",
+          "properties": {
+            "established": {
+              "type": "string",
+              "format": "date",
+              "description": "Date established or founded"
+            },
+            "incorporated": {
+              "type": "string",
+              "format": "date"
+            },
+            "dissolved": {
+              "type": "string",
+              "format": "date",
+              "description": "Date dissolved or abandoned"
+            },
+            "validFrom": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Valid from timestamp (for temporal versioning)"
+            },
+            "validTo": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Valid until timestamp"
+            }
+          }
+        },
+        
+        "contact": {
+          "type": "object",
+          "description": "Contact and communication information",
+          "properties": {
+            "website": {
+              "type": "string",
+              "format": "uri"
+            },
+            "phone": {"type": "string"},
+            "email": {
+              "type": "string",
+              "format": "email"
+            },
+            "socialMedia": {
+              "type": "object",
+              "additionalProperties": {"type": "string"}
+            }
+          }
+        },
+        
+        "identifiers": {
+          "type": "object",
+          "description": "External system identifiers",
+          "properties": {
+            "gnisId": {
+              "type": "string",
+              "description": "USGS Geographic Names Information System ID"
+            },
+            "fipsCode": {
+              "type": "string",
+              "description": "Federal Information Processing Standard code"
+            },
+            "iso": {
+              "type": "string",
+              "description": "ISO code if applicable"
+            },
+            "wikidata": {
+              "type": "string",
+              "description": "Wikidata entity ID",
+              "pattern": "^Q[0-9]+$"
+            },
+            "osmId": {
+              "type": "string",
+              "description": "OpenStreetMap ID"
+            }
+          }
+        },
+        
+        "custom": {
+          "type": "object",
+          "description": "Domain-specific custom properties",
+          "additionalProperties": true
+        }
+      }
+    },
+    
+    "metadata": {
+      "type": "object",
+      "description": "System metadata and provenance",
+      "required": [
+        "created",
+        "modified",
+        "source",
+        "version"
+      ],
+      "properties": {
+        "created": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp (ISO 8601)"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modification timestamp"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "User or system that created the record"
+        },
+        "modifiedBy": {
+          "type": "string",
+          "description": "User or system that last modified the record"
+        },
+        "version": {
+          "type": "integer",
+          "description": "Version number (incremented on each update)",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "description": "Data source and provenance",
+          "required": ["provider", "ingestionDate"],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "Data provider name"
+            },
+            "providerUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "dataset": {
+              "type": "string",
+              "description": "Source dataset identifier"
+            },
+            "ingestionDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "license": {
+              "type": "string",
+              "description": "Data license"
+            },
+            "attribution": {
+              "type": "string",
+              "description": "Required attribution text"
+            },
+            "apiEndpoint": {
+              "type": "string",
+              "format": "uri",
+              "description": "API endpoint used for ingestion"
+            }
+          }
+        },
+        "quality": {
+          "type": "object",
+          "description": "Data quality metrics",
+          "properties": {
+            "completeness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Completeness score (0-1)"
+            },
+            "accuracy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Accuracy score (0-1)"
+            },
+            "consistency": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Consistency score (0-1)"
+            },
+            "validationPassed": {
+              "type": "boolean",
+              "description": "Whether record passed all validation checks"
+            },
+            "validationErrors": {
+              "type": "array",
+              "description": "List of validation errors (if any)",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "governance": {
+          "type": "object",
+          "description": "Governance and compliance metadata",
+          "properties": {
+            "truthGovernorApproved": {
+              "type": "boolean",
+              "description": "Truth Governor approval status"
+            },
+            "approvalTimestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "dataClassification": {
+              "type": "string",
+              "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"],
+              "description": "Data classification level"
+            },
+            "privacyImpact": {
+              "type": "string",
+              "enum": ["NONE", "LOW", "MEDIUM", "HIGH"],
+              "description": "Privacy impact assessment"
+            },
+            "retentionPeriod": {
+              "type": "string",
+              "description": "Data retention period (ISO 8601 duration)",
+              "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?$"
+            }
+          }
+        },
+        "audit": {
+          "type": "object",
+          "description": "Audit trail",
+          "properties": {
+            "changeHistory": {
+              "type": "array",
+              "description": "History of changes to this record",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {"type": "string", "format": "date-time"},
+                  "user": {"type": "string"},
+                  "action": {
+                    "type": "string",
+                    "enum": ["CREATE", "UPDATE", "DELETE", "APPROVE", "REJECT"]
+                  },
+                  "changes": {"type": "object"},
+                  "reason": {"type": "string"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "relationships": {
+      "type": "object",
+      "description": "Relationships to other geographic objects",
+      "properties": {
+        "parentId": {
+          "type": "string",
+          "description": "ID of parent geographic object"
+        },
+        "childrenIds": {
+          "type": "array",
+          "description": "IDs of child geographic objects",
+          "items": {"type": "string"}
+        },
+        "adjacentIds": {
+          "type": "array",
+          "description": "IDs of adjacent geographic objects",
+          "items": {"type": "string"}
+        },
+        "relatedIds": {
+          "type": "array",
+          "description": "IDs of related geographic objects",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "relationship": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "additionalProperties": false,
+  
+  "examples": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "Feature",
+      "name": {
+        "primary": "San Francisco",
+        "alternate": [
+          {
+            "value": "San Francisco City and County",
+            "type": "official"
+          },
+          {
+            "value": "SF",
+            "type": "abbreviation"
+          }
+        ],
+        "official": "City and County of San Francisco"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4194, 37.7749],
+        "bbox": [-122.5149, 37.7034, -122.3549, 37.8324]
+      },
+      "properties": {
+        "classification": {
+          "category": "populated_place",
+          "subcategory": "city",
+          "tags": ["urban", "coastal", "tech-hub"]
+        },
+        "location": {
+          "country": "United States",
+          "countryCode": "US",
+          "state": "California",
+          "stateCode": "CA",
+          "county": "San Francisco County",
+          "timezone": "America/Los_Angeles"
+        },
+        "demographics": {
+          "population": 873965,
+          "populationYear": 2020,
+          "density": 7174.0,
+          "households": 345811,
+          "medianIncome": 119136
+        },
+        "physical": {
+          "area": 121400000,
+          "elevation": 16
+        },
+        "temporal": {
+          "incorporated": "1850-04-15"
+        },
+        "contact": {
+          "website": "https://sf.gov",
+          "phone": "+1-415-701-2311"
+        },
+        "identifiers": {
+          "fipsCode": "0667000",
+          "wikidata": "Q62",
+          "gnisId": "277593"
+        }
+      },
+      "metadata": {
+        "created": "2025-12-23T05:00:00Z",
+        "modified": "2025-12-23T05:00:00Z",
+        "createdBy": "api-ingestion-service",
+        "version": 1,
+        "source": {
+          "provider": "US Census Bureau",
+          "dataset": "2020 Census",
+          "ingestionDate": "2025-12-23T05:00:00Z",
+          "license": "Public Domain",
+          "apiEndpoint": "https://api.census.gov/data/2020/dec/pl"
+        },
+        "quality": {
+          "completeness": 0.98,
+          "accuracy": 0.99,
+          "consistency": 1.0,
+          "validationPassed": true
+        },
+        "governance": {
+          "truthGovernorApproved": true,
+          "approvalTimestamp": "2025-12-23T05:00:00Z",
+          "dataClassification": "PUBLIC",
+          "privacyImpact": "NONE"
+        }
+      },
+      "relationships": {
+        "parentId": "state-california-uuid",
+        "childrenIds": ["district-1-uuid", "district-2-uuid"]
+      }
+    }
+  ]
+}
