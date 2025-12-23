@@ -1,0 +1,138 @@
+job_contract:
+  name: triage-incoming-issues
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-TRIAGE-001
+    tags: [issue-management, automation, triage]
+  
+  governance:
+    authorization_level: public
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically label newly opened or reopened issues with 'triage' label to ensure proper issue tracking and management workflow
+    success_criteria:
+      - All new issues receive 'triage' label within seconds of creation
+      - Reopened issues are re-triaged automatically
+      - Issues that have 'more-info-needed' removed are re-triaged
+      - No manual intervention required for standard triage
+    constraints:
+      - Must respect GitHub API rate limits
+      - Must only apply to issues, not pull requests
+      - Must preserve existing labels
+    business_value: Ensures consistent issue tracking and reduces manual triage overhead, improving response times and issue resolution efficiency
+  
+  ai_implementation:
+    execution_strategy: Event-driven GitHub Actions workflow that responds to issue lifecycle events and applies labels using GitHub CLI
+    technology_stack: [GitHub Actions, GitHub CLI, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 5-10 seconds per execution
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - issues.reopened
+          - issues.opened
+          - issues.unlabeled
+  
+  inputs:
+    - name: issue_number
+      type: number
+      required: true
+      description: GitHub issue number from webhook event
+      validation:
+        constraints: [must be positive integer]
+    - name: event_action
+      type: string
+      required: true
+      description: The action that triggered the workflow
+      validation:
+        constraints: [must be one of opened, reopened, unlabeled]
+    - name: removed_label
+      type: string
+      required: false
+      description: Label that was removed (for unlabeled events)
+  
+  execution:
+    steps:
+      - id: label_new_issues
+        name: Add triage label to new/reopened issues
+        action: github-cli-command
+        configuration:
+          condition: event_action in ['opened', 'reopened']
+          command: gh issue edit "$NUMBER" --add-label "$LABELS"
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+            LABELS: triage
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+      
+      - id: relabel_more_info_issues
+        name: Re-add triage label when more-info-needed is removed
+        action: github-cli-command
+        configuration:
+          condition: event_action == 'unlabeled' AND removed_label == 'more-info-needed'
+          command: gh issue edit "$NUMBER" --add-label "$LABELS"
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+            LABELS: triage
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+  
+  outputs:
+    - name: labeled_issue
+      type: object
+      description: Updated issue with applied labels
+      destination: GitHub API
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-issue-number, sanitize-label-names]
+  
+  monitoring:
+    metrics: [execution_count, success_rate, execution_duration, api_calls]
+    alerts:
+      - condition: success_rate < 0.95
+        severity: medium
+        notification_channels: [github-actions-logs]
+      - condition: execution_duration > 30s
+        severity: low
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: false
+    strategy: manual
+    conditions: []
+    restore_point: Labels can be manually removed if incorrectly applied
+
+# Original workflow reference: .github/workflows/triage-issues.yml
+# Migration notes: This contract maintains exact functionality while adding governance, security, and monitoring layers

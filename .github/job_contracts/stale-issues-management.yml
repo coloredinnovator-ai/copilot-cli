@@ -1,0 +1,127 @@
+job_contract:
+  name: stale-issues-management
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-STALE-001
+    tags: [issue-management, maintenance, automation, stale]
+  
+  governance:
+    authorization_level: internal
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices, Issue Lifecycle Management]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically identify and label stale issues to maintain repository health and ensure active issue tracking
+    success_criteria:
+      - Issues inactive for 365 days are labeled as stale
+      - Exempt issues with specific labels are never marked stale
+      - Process runs daily without manual intervention
+      - Issues created before 2025-01-01 are excluded from stale marking
+    constraints:
+      - Must not close issues automatically
+      - Must not mark pull requests as stale
+      - Must respect exempt labels (never-stale, help wanted)
+      - Must not process issues created before start date
+    business_value: Maintains repository cleanliness, helps prioritize active issues, and provides visibility into long-standing issues requiring attention
+  
+  ai_implementation:
+    execution_strategy: Scheduled daily workflow using GitHub's stale action to automatically label inactive issues based on configurable criteria
+    technology_stack: [GitHub Actions, actions/stale@v9, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 1-5 minutes depending on issue count
+  
+  triggers:
+    - type: schedule
+      configuration:
+        cron: '30 1 * * *'
+        timezone: UTC
+        description: Runs daily at 1:30 AM UTC
+  
+  inputs:
+    - name: days_before_stale
+      type: number
+      required: true
+      default: 365
+      description: Number of days of inactivity before an issue is marked stale
+      validation:
+        constraints: [must be positive integer]
+    - name: exempt_labels
+      type: array
+      required: true
+      default: ['never-stale', 'help wanted']
+      description: Labels that exempt issues from being marked stale
+    - name: start_date
+      type: string
+      required: true
+      default: '2025-01-01T00:00:00Z'
+      description: ISO 8601 timestamp - issues created before this date are skipped
+  
+  execution:
+    steps:
+      - id: run_stale_action
+        name: Execute stale issue detection and labeling
+        action: github-action
+        configuration:
+          uses: actions/stale@v9
+          with:
+            stale-issue-label: 'stale, triage'
+            start-date: '2025-01-01T00:00:00Z'
+            days-before-stale: 365
+            days-before-close: -1
+            days-before-pr-stale: -1
+            exempt-issue-labels: 'never-stale, help wanted'
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 2
+            backoff_strategy: linear
+          on_failure: abort
+  
+  outputs:
+    - name: stale_issues_count
+      type: number
+      description: Number of issues marked as stale in this run
+      destination: GitHub Actions logs
+    - name: processed_issues
+      type: array
+      description: List of issue numbers that were marked stale
+      destination: GitHub Actions logs
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-label-names, validate-date-format]
+  
+  monitoring:
+    metrics: [execution_count, issues_marked_stale, execution_duration, api_calls]
+    alerts:
+      - condition: execution_duration > 600s
+        severity: medium
+        notification_channels: [github-actions-logs]
+      - condition: issues_marked_stale > 100
+        severity: low
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: true
+    strategy: manual
+    conditions: [incorrect_labeling, excessive_stale_marking]
+    restore_point: Stale labels can be manually removed from incorrectly marked issues
+
+# Original workflow reference: .github/workflows/stale-issues.yml
+# Migration notes: Maintains daily schedule and exact stale detection logic with enhanced governance

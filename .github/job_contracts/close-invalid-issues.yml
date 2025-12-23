@@ -1,0 +1,108 @@
+job_contract:
+  name: close-invalid-issues
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-CLOSE-INVALID-001
+    tags: [issue-management, automation, quality-control]
+  
+  governance:
+    authorization_level: internal
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices, Issue Quality Standards]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically close issues that are marked as invalid to maintain repository quality and reduce noise from non-actionable issues
+    success_criteria:
+      - Issues with 'invalid' label are closed automatically
+      - Closure happens within minutes of label application
+      - No manual intervention required
+      - Appropriate comment is added explaining closure
+    constraints:
+      - Only applies to issues with 'invalid' label
+      - Must not affect valid issues
+      - Must provide clear explanation for closure
+    business_value: Maintains repository quality, reduces maintainer workload, provides clear feedback to issue reporters
+  
+  ai_implementation:
+    execution_strategy: Event-driven GitHub Actions workflow that closes issues when they receive the 'invalid' label
+    technology_stack: [GitHub Actions, GitHub CLI, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 5-10 seconds per execution
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - issues.labeled
+        conditions:
+          - label_name == 'invalid'
+  
+  inputs:
+    - name: issue_number
+      type: number
+      required: true
+      description: GitHub issue number to close
+    - name: label_name
+      type: string
+      required: true
+      description: Label that was applied
+      validation:
+        constraints: [must equal 'invalid']
+  
+  execution:
+    steps:
+      - id: close_invalid_issue
+        name: Close issue marked as invalid
+        action: github-cli-command
+        configuration:
+          command: gh issue close "$NUMBER" --reason "not planned" --comment "This issue has been marked as invalid and is being closed."
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+  
+  outputs:
+    - name: closed_issue
+      type: object
+      description: Closed issue details
+      destination: GitHub API
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-issue-number, sanitize-comment-text]
+  
+  monitoring:
+    metrics: [execution_count, issues_closed, execution_duration]
+    alerts:
+      - condition: execution_duration > 30s
+        severity: low
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: true
+    strategy: manual
+    conditions: [incorrect_closure]
+    restore_point: Issues can be manually reopened if incorrectly closed
+
+# Original workflow reference: .github/workflows/close-invalid.yml

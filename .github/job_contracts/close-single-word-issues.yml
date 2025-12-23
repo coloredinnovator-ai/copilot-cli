@@ -1,0 +1,130 @@
+job_contract:
+  name: close-single-word-issues
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-CLOSE-SINGLE-001
+    tags: [issue-management, automation, quality-control, spam-prevention]
+  
+  governance:
+    authorization_level: internal
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices, Issue Quality Standards]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically detect and close low-quality issues containing only single words or minimal content to prevent spam and maintain repository quality
+    success_criteria:
+      - Issues with single-word titles or bodies are detected
+      - Such issues are closed automatically with explanation
+      - Reduces spam and low-effort submissions
+      - Provides educational feedback to users
+    constraints:
+      - Must accurately identify single-word issues
+      - Must not close legitimate short issues
+      - Must provide helpful feedback message
+    business_value: Reduces noise in issue tracker, maintains high quality standards, educates users on proper issue reporting
+  
+  ai_implementation:
+    execution_strategy: Event-driven workflow that analyzes newly opened issues for single-word content and closes them with educational comment
+    technology_stack: [GitHub Actions, GitHub CLI, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 5-15 seconds per execution
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - issues.opened
+  
+  inputs:
+    - name: issue_number
+      type: number
+      required: true
+      description: Newly opened issue number
+    - name: issue_title
+      type: string
+      required: true
+      description: Issue title to analyze
+    - name: issue_body
+      type: string
+      required: true
+      description: Issue body to analyze
+  
+  execution:
+    steps:
+      - id: analyze_issue_content
+        name: Check if issue contains only single word
+        action: bash-script
+        configuration:
+          script: |
+            TITLE="${{ github.event.issue.title }}"
+            BODY="${{ github.event.issue.body }}"
+            WORD_COUNT=$(echo "$TITLE $BODY" | wc -w)
+            if [ "$WORD_COUNT" -le 1 ]; then
+              echo "SINGLE_WORD=true" >> $GITHUB_ENV
+            else
+              echo "SINGLE_WORD=false" >> $GITHUB_ENV
+            fi
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: close_single_word_issue
+        name: Close single-word issue with explanation
+        action: github-cli-command
+        configuration:
+          condition: SINGLE_WORD == 'true'
+          command: |
+            gh issue close "$NUMBER" --reason "not planned" --comment "This issue appears to contain minimal content. Please provide more details about your bug report or feature request, including:\n\n- A clear description of the issue\n- Steps to reproduce (for bugs)\n- Expected vs actual behavior\n- Environment details\n\nFeel free to open a new issue with complete information."
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+        dependencies: [analyze_issue_content]
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+  
+  outputs:
+    - name: action_taken
+      type: string
+      description: Whether issue was closed or left open
+      destination: GitHub Actions logs
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [sanitize-issue-content, validate-word-count]
+  
+  monitoring:
+    metrics: [execution_count, issues_analyzed, issues_closed, false_positive_rate]
+    alerts:
+      - condition: false_positive_rate > 0.05
+        severity: medium
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: true
+    strategy: manual
+    conditions: [false_positive_detected]
+    restore_point: Issues can be reopened if incorrectly closed
+
+# Original workflow reference: .github/workflows/close-single-word-issues.yml

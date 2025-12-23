@@ -150,6 +150,55 @@ Any system that treats this as a blunt rule instead of a reasoning guide is **mi
 
 ---
 
+## HUMANS DEFINE LAW — AI GENERATES CONTRACTS
+
+### ENTERPRISE GOVERNANCE PRINCIPLE
+
+This repository operates under the **"Humans Define Law"** directive:
+
+**HUMANS** define:
+- **OBJECTIVES** — What needs to be done and why
+- **CONSTRAINTS** — Boundaries, policies, and requirements
+- **GOVERNANCE** — Authorization, compliance, and oversight
+- **SUCCESS CRITERIA** — How to measure achievement
+
+**AI** generates:
+- **IMPLEMENTATION** — How to execute efficiently and securely
+- **AUTOMATION** — Scalable execution strategies
+- **MONITORING** — Observability and alerting
+- **OPTIMIZATION** — Performance and resource management
+
+### JOB CONTRACT SYSTEM
+
+All automated tasks, workflows, and operations are defined as **Job Contracts** in `.github/job_contracts/`.
+
+Each contract is a YAML document containing:
+- **Human Intent**: Clear statement of purpose, value, and constraints
+- **AI Implementation**: Execution strategy, technology choices, and resources
+- **Governance**: Authorization levels, approvals, and compliance
+- **Security**: Permissions, secrets, vulnerability thresholds, sanitization
+- **Monitoring**: Metrics, alerts, and logging
+- **Rollback**: Recovery strategies and restore points
+
+### WHY THIS MATTERS
+
+1. **Transparency**: All automation is documented and auditable
+2. **Accountability**: Clear separation between human intent and AI execution
+3. **Security**: Built-in security controls at every layer
+4. **Scalability**: Enterprise-grade automation infrastructure
+5. **Compliance**: Framework-aligned governance and audit trails
+6. **Adaptability**: AI optimizes implementation while preserving human objectives
+
+### CONTRACT LIFECYCLE
+
+```
+Human Intent → Contract Definition → AI Implementation → Validation → Execution → Monitoring → Audit
+```
+
+For complete documentation, see `.github/job_contracts/README.md`.
+
+---
+
 ### END OF FILE  
 ### APPLY LOGIC  
 ### PRESERVE INTENT  

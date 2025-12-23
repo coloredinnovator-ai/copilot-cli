@@ -1,0 +1,109 @@
+job_contract:
+  name: unable-to-reproduce-handler
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-UNABLE-REPRODUCE-001
+    tags: [issue-management, automation, bug-triage, community-engagement]
+  
+  governance:
+    authorization_level: internal
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices, Bug Triage Process]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically post helpful guidance when issues are labeled as 'unable-to-reproduce' to request additional information from reporters
+    success_criteria:
+      - Issues labeled 'unable-to-reproduce' receive informative comment
+      - Comment requests specific troubleshooting information
+      - Provides clear steps for issue reporter to help resolve
+      - Maintains professional and helpful tone
+    constraints:
+      - Only applies to issues with 'unable-to-reproduce' label
+      - Must not spam with duplicate comments
+      - Must request actionable information
+    business_value: Improves bug report quality, increases reproduction success rate, educates users on effective reporting, reduces back-and-forth
+  
+  ai_implementation:
+    execution_strategy: Event-driven workflow that posts detailed guidance comment when issues are labeled as unable to reproduce
+    technology_stack: [GitHub Actions, GitHub CLI, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 5-10 seconds per execution
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - issues.labeled
+        conditions:
+          - label_name == 'unable-to-reproduce'
+  
+  inputs:
+    - name: issue_number
+      type: number
+      required: true
+      description: Issue labeled as unable to reproduce
+    - name: label_name
+      type: string
+      required: true
+      description: Label that was applied
+      validation:
+        constraints: [must equal 'unable-to-reproduce']
+  
+  execution:
+    steps:
+      - id: post_reproduction_guidance
+        name: Post detailed comment requesting reproduction information
+        action: github-cli-command
+        configuration:
+          command: |
+            gh issue comment "$NUMBER" --body "👋 We're having trouble reproducing this issue. To help us investigate, could you please provide:\n\n## Environment Details\n- **Operating System**: (e.g., macOS 14.1, Windows 11, Ubuntu 22.04)\n- **Copilot CLI Version**: (run \`copilot --version\`)\n- **Shell**: (e.g., bash, zsh, PowerShell)\n- **Terminal**: (e.g., Terminal.app, Windows Terminal, iTerm2)\n\n## Reproduction Steps\nPlease provide step-by-step instructions to reproduce the issue:\n\n1. First step...\n2. Second step...\n3. ...\n\n## Expected Behavior\nWhat did you expect to happen?\n\n## Actual Behavior\nWhat actually happened? Please include:\n- Error messages (full text)\n- Screenshots if applicable\n- Relevant log output\n\n## Additional Context\n- Does this happen consistently or intermittently?\n- Did this ever work before? If so, when did it stop working?\n- Any recent changes to your environment?\n\n## Debug Logs\nIf possible, please run with increased verbosity and share the output:\n\`\`\`bash\ncopilot --log-level debug <your-command>\n\`\`\`\n\nThe more details you can provide, the better we can help! Thank you! 🙏"
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+  
+  outputs:
+    - name: comment_posted
+      type: boolean
+      description: Whether guidance comment was posted
+      destination: GitHub Actions logs
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-issue-number, sanitize-comment-markdown]
+  
+  monitoring:
+    metrics: [execution_count, comments_posted, follow_up_rate, successful_reproduction_rate]
+    alerts:
+      - condition: execution_duration > 30s
+        severity: low
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: false
+    strategy: manual
+    conditions: []
+    restore_point: Comments can be edited or deleted manually if needed
+
+# Original workflow reference: .github/workflows/unable-to-reproduce-comment.yml
