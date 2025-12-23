@@ -1,0 +1,278 @@
+job_contract:
+  name: copilot-cli-installation
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-INSTALL-001
+    tags: [installation, distribution, cross-platform, user-onboarding]
+  
+  governance:
+    authorization_level: public
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [Security Best Practices, Cross-Platform Compatibility]
+    audit_logging: true
+  
+  human_intent:
+    objective: Provide a secure, user-friendly installation script that automatically detects platform and architecture to install GitHub Copilot CLI
+    success_criteria:
+      - Supports macOS, Linux, and Windows platforms
+      - Detects x64 and ARM64 architectures correctly
+      - Downloads and verifies checksums for security
+      - Installs to appropriate directory with proper permissions
+      - Provides clear error messages and installation guidance
+      - Handles both root and non-root installations
+    constraints:
+      - Must validate downloaded files before installation
+      - Must check for required dependencies (curl/wget)
+      - Must not require manual configuration for standard use
+      - Must handle custom installation paths via PREFIX
+      - Must preserve existing installations safely
+    business_value: Reduces installation friction, improves user onboarding experience, ensures secure distribution, supports diverse platform configurations
+  
+  ai_implementation:
+    execution_strategy: Bash script that detects system environment, downloads appropriate binary, validates integrity, and installs to correct location
+    technology_stack: [Bash, curl/wget, tar, sha256sum/shasum]
+    resources_required:
+      compute: User system (any Unix-like or Windows with bash)
+      storage: ~50MB for binary download and extraction
+      network: GitHub release asset download
+    estimated_duration: 30-120 seconds depending on network speed
+  
+  triggers:
+    - type: manual
+      configuration:
+        invocation_method: 
+          - curl -fsSL https://gh.io/copilot-install | bash
+          - wget -qO- https://gh.io/copilot-install | bash
+          - direct execution of install.sh
+  
+  inputs:
+    - name: VERSION
+      type: string
+      required: false
+      default: latest
+      description: Specific version to install (e.g., v0.0.372 or 0.0.372)
+      validation:
+        pattern: ^v?\d+\.\d+\.\d+$
+    - name: PREFIX
+      type: string
+      required: false
+      default: /usr/local (root) or $HOME/.local (non-root)
+      description: Base directory for installation (binary goes in PREFIX/bin)
+      validation:
+        constraints: [must be writable directory]
+    - name: SUDO_USER
+      type: string
+      required: false
+      description: Used when running with sudo to determine user preferences
+  
+  execution:
+    steps:
+      - id: detect_platform
+        name: Detect operating system platform
+        action: bash-command
+        configuration:
+          script: |
+            case "$(uname -s || echo "")" in
+              Darwin*) PLATFORM="darwin" ;;
+              Linux*) PLATFORM="linux" ;;
+              *) handle_windows ;;
+            esac
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: detect_architecture
+        name: Detect CPU architecture
+        action: bash-command
+        configuration:
+          script: |
+            case "$(uname -m)" in
+              x86_64|amd64) ARCH="x64" ;;
+              aarch64|arm64) ARCH="arm64" ;;
+              *) exit_with_error ;;
+            esac
+        dependencies: [detect_platform]
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: determine_download_url
+        name: Construct download URL based on version and platform
+        action: bash-command
+        configuration:
+          script: |
+            if [ -n "$VERSION" ]; then
+              # Normalize version with 'v' prefix
+              DOWNLOAD_URL="https://github.com/github/copilot-cli/releases/download/${VERSION}/copilot-${PLATFORM}-${ARCH}.tar.gz"
+              CHECKSUMS_URL="https://github.com/github/copilot-cli/releases/download/${VERSION}/SHA256SUMS.txt"
+            else
+              DOWNLOAD_URL="https://github.com/github/copilot-cli/releases/latest/download/copilot-${PLATFORM}-${ARCH}.tar.gz"
+              CHECKSUMS_URL="https://github.com/github/copilot-cli/releases/latest/download/SHA256SUMS.txt"
+            fi
+        dependencies: [detect_architecture]
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: download_binary
+        name: Download Copilot CLI tarball
+        action: bash-command
+        configuration:
+          script: |
+            TMP_DIR="$(mktemp -d)"
+            if command -v curl >/dev/null 2>&1; then
+              curl -fsSL "$DOWNLOAD_URL" -o "$TMP_TARBALL"
+            elif command -v wget >/dev/null 2>&1; then
+              wget -qO "$TMP_TARBALL" "$DOWNLOAD_URL"
+            else
+              exit_with_error "Neither curl nor wget found"
+            fi
+        dependencies: [determine_download_url]
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+      
+      - id: validate_checksum
+        name: Download and verify SHA256 checksum
+        action: bash-command
+        configuration:
+          script: |
+            # Download checksums file
+            download_checksums
+            # Verify using sha256sum or shasum
+            if command -v sha256sum >/dev/null 2>&1; then
+              (cd "$TMP_DIR" && sha256sum -c --ignore-missing SHA256SUMS.txt)
+            elif command -v shasum >/dev/null 2>&1; then
+              (cd "$TMP_DIR" && shasum -a 256 -c --ignore-missing SHA256SUMS.txt)
+            fi
+        dependencies: [download_binary]
+        error_handling:
+          retry_policy:
+            max_attempts: 2
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: validate_tarball
+        name: Verify downloaded file is valid tarball
+        action: bash-command
+        configuration:
+          script: tar -tzf "$TMP_TARBALL" >/dev/null 2>&1
+        dependencies: [validate_checksum]
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: determine_install_directory
+        name: Determine installation directory based on user privileges
+        action: bash-command
+        configuration:
+          script: |
+            if [ "$(id -u)" -eq 0 ]; then
+              PREFIX="${PREFIX:-/usr/local}"
+            else
+              PREFIX="${PREFIX:-$HOME/.local}"
+            fi
+            INSTALL_DIR="$PREFIX/bin"
+            mkdir -p "$INSTALL_DIR"
+        dependencies: [validate_tarball]
+        error_handling:
+          retry_policy:
+            max_attempts: 2
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: install_binary
+        name: Extract and install Copilot CLI binary
+        action: bash-command
+        configuration:
+          script: |
+            tar -xz -C "$INSTALL_DIR" -f "$TMP_TARBALL"
+            chmod +x "$INSTALL_DIR/copilot"
+            rm -rf "$TMP_DIR"
+        dependencies: [determine_install_directory]
+        error_handling:
+          retry_policy:
+            max_attempts: 2
+            backoff_strategy: linear
+          on_failure: rollback
+      
+      - id: verify_path
+        name: Check if installation directory is in PATH
+        action: bash-command
+        configuration:
+          script: |
+            case ":$PATH:" in
+              *":$INSTALL_DIR:"*) 
+                echo "✓ $INSTALL_DIR is in PATH" 
+                ;;
+              *)
+                echo "Warning: $INSTALL_DIR is not in your PATH"
+                echo "Add it with: export PATH=\"\$PATH:$INSTALL_DIR\""
+                ;;
+            esac
+        dependencies: [install_binary]
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: continue
+  
+  outputs:
+    - name: installation_path
+      type: string
+      description: Full path to installed copilot binary
+      destination: stdout
+    - name: installation_status
+      type: string
+      description: Success or failure message
+      destination: stdout
+  
+  security:
+    secrets_required: []
+    permissions_needed: [file-system-write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules:
+      - validate-download-urls-are-from-github
+      - verify-sha256-checksums-before-installation
+      - validate-tarball-contents
+      - prevent-directory-traversal
+      - check-file-permissions
+  
+  monitoring:
+    metrics: [installation_attempts, success_rate, platform_distribution, architecture_distribution, installation_duration, download_size]
+    alerts:
+      - condition: success_rate < 0.95
+        severity: high
+        notification_channels: [telemetry]
+      - condition: checksum_validation_failure
+        severity: critical
+        notification_channels: [security-team, telemetry]
+    logging_level: info
+  
+  rollback:
+    enabled: true
+    strategy: automatic
+    conditions: [installation_failed, checksum_mismatch, invalid_tarball]
+    restore_point: Temporary files cleaned up, no system changes if installation fails
+
+# Original script reference: install.sh
+# Migration notes: Script logic preserved exactly with enhanced security validation, error handling, and monitoring

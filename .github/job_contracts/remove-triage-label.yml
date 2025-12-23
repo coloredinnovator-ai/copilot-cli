@@ -1,0 +1,105 @@
+job_contract:
+  name: remove-triage-label
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-REMOVE-TRIAGE-001
+    tags: [issue-management, automation, label-management]
+  
+  governance:
+    authorization_level: internal
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically remove the 'triage' label when issues receive other management labels indicating they have been triaged
+    success_criteria:
+      - Triage label removed when issue receives status labels
+      - Prevents duplicate/conflicting label states
+      - No manual intervention needed
+    constraints:
+      - Only applies when specific labels are added
+      - Must preserve other labels
+      - Must not interfere with other workflows
+    business_value: Maintains clean label taxonomy, prevents label conflicts, reflects accurate issue state
+  
+  ai_implementation:
+    execution_strategy: Event-driven workflow that removes triage label when certain labels are added to indicate triaging is complete
+    technology_stack: [GitHub Actions, GitHub CLI, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 5-10 seconds per execution
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - issues.labeled
+        conditions:
+          - label_name in ['bug', 'feature-request', 'more-info-needed', 'duplicate', 'wontfix']
+  
+  inputs:
+    - name: issue_number
+      type: number
+      required: true
+      description: Issue number that received label
+    - name: label_added
+      type: string
+      required: true
+      description: Label that was added
+  
+  execution:
+    steps:
+      - id: remove_triage_on_categorization
+        name: Remove triage label when issue is categorized
+        action: github-cli-command
+        configuration:
+          command: gh issue edit "$NUMBER" --remove-label "triage" || true
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: continue
+  
+  outputs:
+    - name: triage_removed
+      type: boolean
+      description: Whether triage label was removed
+      destination: GitHub Actions logs
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-issue-number, validate-label-names]
+  
+  monitoring:
+    metrics: [execution_count, labels_removed, execution_duration]
+    alerts:
+      - condition: execution_duration > 30s
+        severity: low
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: false
+    strategy: manual
+    conditions: []
+    restore_point: Labels can be manually adjusted if needed
+
+# Original workflow reference: .github/workflows/remove-triage-label.yml

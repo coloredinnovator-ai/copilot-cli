@@ -1,0 +1,177 @@
+job_contract:
+  name: winget-package-submission
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-WINGET-001
+    tags: [release, distribution, windows, winget, package-management]
+  
+  governance:
+    authorization_level: restricted
+    requires_approval: true
+    approvers: [release-managers]
+    compliance_frameworks: [GitHub Actions Best Practices, Release Management, Windows Package Management]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically submit new releases to the Windows Package Manager (WinGet) community repository for seamless distribution to Windows users
+    success_criteria:
+      - New releases are submitted to WinGet automatically
+      - Both x64 and ARM64 architectures are included
+      - Package metadata is correctly updated
+      - Pull request is created in WinGet repository
+      - Prerelease and stable releases use correct package IDs
+    constraints:
+      - Only runs on Windows runners (winget-create requirement)
+      - Requires WINGET_CREATE_GITHUB_TOKEN secret
+      - Must handle both stable and prerelease versions
+      - Must correctly identify x64 and ARM64 installers
+    business_value: Automates Windows distribution channel, reduces manual release overhead, ensures timely availability for Windows users
+  
+  ai_implementation:
+    execution_strategy: Event-driven workflow triggered on GitHub release publication that uses winget-create to submit package updates to WinGet repository
+    technology_stack: [GitHub Actions, winget-create, PowerShell, Windows]
+    resources_required:
+      compute: GitHub Actions runner (windows-latest)
+      storage: Minimal (temporary installer downloads)
+      network: GitHub API access, WinGet repository access
+    estimated_duration: 2-5 minutes per release
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - release.published
+  
+  inputs:
+    - name: release_tag
+      type: string
+      required: true
+      description: Git tag name of the published release
+      validation:
+        pattern: ^v?\d+\.\d+\.\d+.*$
+    - name: is_prerelease
+      type: boolean
+      required: true
+      description: Whether the release is a prerelease
+    - name: release_assets
+      type: array
+      required: true
+      description: List of release assets including installer URLs
+      validation:
+        constraints: [must contain win32-x64 and win32-arm64 installers]
+  
+  execution:
+    steps:
+      - id: determine_package_id
+        name: Determine WinGet package ID based on release type
+        action: powershell-script
+        configuration:
+          script: |
+            $packageId = if ('${{ !github.event.release.prerelease }}' -eq 'true') { 
+              'GitHub.Copilot' 
+            } else { 
+              'GitHub.Copilot.Prerelease' 
+            }
+            Write-Output "Package ID: $packageId"
+            echo "PACKAGE_ID=$packageId" >> $env:GITHUB_ENV
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 1
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: extract_installer_urls
+        name: Extract x64 and ARM64 installer download URLs
+        action: powershell-script
+        configuration:
+          script: |
+            $assets = '${{ toJSON(github.event.release.assets) }}' | ConvertFrom-Json
+            $packageVersion = (${{ toJSON(github.event.release.tag_name) }})
+            $installerUrlx64 = $assets | Where-Object -Property name -like '*win32-x64.zip' | Select-Object -ExpandProperty browser_download_url
+            $installerUrlarm64 = $assets | Where-Object -Property name -like '*win32-arm64.zip' | Select-Object -ExpandProperty browser_download_url
+            echo "X64_URL=$installerUrlx64" >> $env:GITHUB_ENV
+            echo "ARM64_URL=$installerUrlarm64" >> $env:GITHUB_ENV
+            echo "VERSION=$packageVersion" >> $env:GITHUB_ENV
+        dependencies: [determine_package_id]
+        error_handling:
+          retry_policy:
+            max_attempts: 2
+            backoff_strategy: linear
+          on_failure: abort
+      
+      - id: download_winget_create
+        name: Download latest wingetcreate tool
+        action: powershell-script
+        configuration:
+          script: curl.exe -JLO https://aka.ms/wingetcreate/latest
+        dependencies: [extract_installer_urls]
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: abort
+      
+      - id: submit_to_winget
+        name: Update WinGet package and submit pull request
+        action: powershell-script
+        configuration:
+          script: |
+            .\wingetcreate.exe update $env:PACKAGE_ID `
+              --version $env:VERSION `
+              --urls "$env:X64_URL|x64" "$env:ARM64_URL|arm64" `
+              --submit
+          environment:
+            WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+        dependencies: [download_winget_create]
+        error_handling:
+          retry_policy:
+            max_attempts: 2
+            backoff_strategy: linear
+          on_failure: abort
+  
+  outputs:
+    - name: winget_pr_url
+      type: string
+      description: URL of the pull request created in WinGet repository
+      destination: GitHub Actions logs
+    - name: package_id
+      type: string
+      description: WinGet package ID used for this submission
+      destination: GitHub Actions logs
+  
+  security:
+    secrets_required: [WINGET_CREATE_GITHUB_TOKEN, GITHUB_TOKEN]
+    permissions_needed: [contents:read, pull-requests:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-installer-checksums, verify-release-authenticity, sanitize-version-strings]
+  
+  monitoring:
+    metrics: [execution_count, success_rate, submission_duration, installer_size]
+    alerts:
+      - condition: success_rate < 0.90
+        severity: high
+        notification_channels: [github-actions-logs, release-team]
+      - condition: submission_duration > 600s
+        severity: medium
+        notification_channels: [github-actions-logs]
+      - condition: installer_download_failed
+        severity: critical
+        notification_channels: [github-actions-logs, release-team]
+    logging_level: info
+  
+  rollback:
+    enabled: true
+    strategy: manual
+    conditions: [incorrect_package_submission, missing_assets, version_mismatch]
+    restore_point: WinGet PR can be closed and resubmitted with corrections
+
+# Original workflow reference: .github/workflows/winget.yml
+# Migration notes: Preserves exact WinGet submission logic with enhanced governance, security validation, and error handling

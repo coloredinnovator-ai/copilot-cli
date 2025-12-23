@@ -1,0 +1,99 @@
+job_contract:
+  name: issue-close-cleanup
+  version: 1.0.0
+  
+  metadata:
+    created_by: enterprise-transformation-ai
+    created_at: 2025-12-23T04:48:45Z
+    last_modified: 2025-12-23T04:48:45Z
+    contract_id: JC-CLOSE-CLEANUP-001
+    tags: [issue-management, automation, cleanup, label-management]
+  
+  governance:
+    authorization_level: internal
+    requires_approval: false
+    approvers: []
+    compliance_frameworks: [GitHub Actions Best Practices]
+    audit_logging: true
+  
+  human_intent:
+    objective: Automatically remove the 'triage' label from issues when they are closed to keep label state accurate
+    success_criteria:
+      - Triage label is removed immediately upon issue closure
+      - Label state accurately reflects issue status
+      - No manual label cleanup needed
+    constraints:
+      - Only applies to closed issues
+      - Must only remove triage label
+      - Must not affect other labels
+    business_value: Maintains accurate label state, enables better issue filtering and reporting, reduces manual label management
+  
+  ai_implementation:
+    execution_strategy: Event-driven workflow that removes triage label when issues are closed
+    technology_stack: [GitHub Actions, GitHub CLI, Ubuntu Linux]
+    resources_required:
+      compute: GitHub Actions runner (ubuntu-latest)
+      storage: Minimal (workflow logs only)
+      network: GitHub API access
+    estimated_duration: 5-10 seconds per execution
+  
+  triggers:
+    - type: event
+      configuration:
+        events:
+          - issues.closed
+  
+  inputs:
+    - name: issue_number
+      type: number
+      required: true
+      description: Number of closed issue
+  
+  execution:
+    steps:
+      - id: remove_triage_label
+        name: Remove triage label from closed issue
+        action: github-cli-command
+        configuration:
+          command: gh issue edit "$NUMBER" --remove-label "triage" || true
+          environment:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.issue.number }}
+        dependencies: []
+        error_handling:
+          retry_policy:
+            max_attempts: 3
+            backoff_strategy: exponential
+          on_failure: continue
+  
+  outputs:
+    - name: label_removed
+      type: boolean
+      description: Whether triage label was removed
+      destination: GitHub Actions logs
+  
+  security:
+    secrets_required: [GITHUB_TOKEN]
+    permissions_needed: [issues:write]
+    security_scanning: true
+    vulnerability_thresholds:
+      critical: 0
+      high: 0
+    sanitization_rules: [validate-issue-number]
+  
+  monitoring:
+    metrics: [execution_count, labels_removed, execution_duration]
+    alerts:
+      - condition: execution_duration > 30s
+        severity: low
+        notification_channels: [github-actions-logs]
+    logging_level: info
+  
+  rollback:
+    enabled: false
+    strategy: manual
+    conditions: []
+    restore_point: Label can be manually re-added if needed
+
+# Original workflow reference: .github/workflows/on-issue-close.yml
