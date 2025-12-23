@@ -1,0 +1,524 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GNIS Core Validation Rules",
+  "version": "1.0.0",
+  "description": "Core validation logic for GNIS data ingestion and quality assurance",
+  
+  "validationRules": {
+    "geographic": {
+      "description": "Geographic coordinate and boundary validations",
+      "rules": [
+        {
+          "id": "GEO-001",
+          "name": "Valid Latitude Range",
+          "description": "Latitude must be between -90 and 90 degrees",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "range",
+            "field": "geometry.coordinates[1]",
+            "min": -90,
+            "max": 90
+          }
+        },
+        {
+          "id": "GEO-002",
+          "name": "Valid Longitude Range",
+          "description": "Longitude must be between -180 and 180 degrees",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "range",
+            "field": "geometry.coordinates[0]",
+            "min": -180,
+            "max": 180
+          }
+        },
+        {
+          "id": "GEO-003",
+          "name": "Coordinate Precision",
+          "description": "Coordinates should have reasonable precision (max 8 decimal places)",
+          "severity": "WARNING",
+          "validation": {
+            "type": "precision",
+            "field": "geometry.coordinates",
+            "maxDecimals": 8
+          }
+        },
+        {
+          "id": "GEO-004",
+          "name": "Bounding Box Validity",
+          "description": "Bounding box min values must be less than max values",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "comparison",
+            "condition": "bbox[0] < bbox[2] && bbox[1] < bbox[3]"
+          }
+        },
+        {
+          "id": "GEO-005",
+          "name": "Polygon Closure",
+          "description": "Polygon first and last coordinates must be identical",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "custom",
+            "applies": "geometry.type === 'Polygon'",
+            "rule": "firstCoordinate === lastCoordinate"
+          }
+        },
+        {
+          "id": "GEO-006",
+          "name": "Minimum Polygon Points",
+          "description": "Polygon must have at least 4 coordinate pairs (3 unique + closure)",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "count",
+            "applies": "geometry.type === 'Polygon'",
+            "field": "geometry.coordinates[0]",
+            "min": 4
+          }
+        }
+      ]
+    },
+    
+    "naming": {
+      "description": "Name field validations",
+      "rules": [
+        {
+          "id": "NAME-001",
+          "name": "Primary Name Required",
+          "description": "Primary name must be present and non-empty",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "required",
+            "field": "name.primary"
+          }
+        },
+        {
+          "id": "NAME-002",
+          "name": "Name Length Limit",
+          "description": "Primary name must not exceed 500 characters",
+          "severity": "ERROR",
+          "validation": {
+            "type": "length",
+            "field": "name.primary",
+            "max": 500
+          }
+        },
+        {
+          "id": "NAME-003",
+          "name": "No Leading/Trailing Whitespace",
+          "description": "Name should not have leading or trailing whitespace",
+          "severity": "WARNING",
+          "validation": {
+            "type": "pattern",
+            "field": "name.primary",
+            "pattern": "^(?!\\s).*(?<!\\s)$"
+          }
+        },
+        {
+          "id": "NAME-004",
+          "name": "Language Code Format",
+          "description": "Language codes must follow ISO 639-1 format (e.g., 'en', 'es-MX')",
+          "severity": "ERROR",
+          "validation": {
+            "type": "pattern",
+            "field": "name.alternate[*].language",
+            "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+          }
+        }
+      ]
+    },
+    
+    "identifiers": {
+      "description": "ID and identifier validations",
+      "rules": [
+        {
+          "id": "ID-001",
+          "name": "Valid UUID Format",
+          "description": "ID must be a valid UUID v4",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "pattern",
+            "field": "id",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          }
+        },
+        {
+          "id": "ID-002",
+          "name": "Unique ID",
+          "description": "ID must be unique across all records",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "unique",
+            "field": "id"
+          }
+        },
+        {
+          "id": "ID-003",
+          "name": "Country Code Format",
+          "description": "Country code must be ISO 3166-1 alpha-2",
+          "severity": "ERROR",
+          "validation": {
+            "type": "pattern",
+            "field": "properties.location.countryCode",
+            "pattern": "^[A-Z]{2}$"
+          }
+        },
+        {
+          "id": "ID-004",
+          "name": "Wikidata Format",
+          "description": "Wikidata ID must start with 'Q' followed by numbers",
+          "severity": "WARNING",
+          "validation": {
+            "type": "pattern",
+            "field": "properties.identifiers.wikidata",
+            "pattern": "^Q[0-9]+$"
+          }
+        }
+      ]
+    },
+    
+    "temporal": {
+      "description": "Date and time validations",
+      "rules": [
+        {
+          "id": "TIME-001",
+          "name": "Valid ISO 8601 Timestamp",
+          "description": "Timestamps must be valid ISO 8601 format",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "format",
+            "field": "metadata.created",
+            "format": "date-time"
+          }
+        },
+        {
+          "id": "TIME-002",
+          "name": "Created Before Modified",
+          "description": "Created timestamp must be before or equal to modified timestamp",
+          "severity": "ERROR",
+          "validation": {
+            "type": "comparison",
+            "condition": "metadata.created <= metadata.modified"
+          }
+        },
+        {
+          "id": "TIME-003",
+          "name": "Reasonable Population Year",
+          "description": "Population year must be between 1900 and current year + 5",
+          "severity": "WARNING",
+          "validation": {
+            "type": "range",
+            "field": "properties.demographics.populationYear",
+            "min": 1900,
+            "max": "currentYear + 5"
+          }
+        },
+        {
+          "id": "TIME-004",
+          "name": "Valid Temporal Range",
+          "description": "validFrom must be before validTo if both are present",
+          "severity": "ERROR",
+          "validation": {
+            "type": "comparison",
+            "applies": "properties.temporal.validFrom && properties.temporal.validTo",
+            "condition": "properties.temporal.validFrom < properties.temporal.validTo"
+          }
+        },
+        {
+          "id": "TIME-005",
+          "name": "Future Timestamp Prevention",
+          "description": "Created and modified timestamps cannot be in the future",
+          "severity": "ERROR",
+          "validation": {
+            "type": "comparison",
+            "condition": "timestamp <= now()"
+          }
+        }
+      ]
+    },
+    
+    "demographics": {
+      "description": "Demographic data validations",
+      "rules": [
+        {
+          "id": "DEMO-001",
+          "name": "Non-Negative Population",
+          "description": "Population must be zero or positive",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "range",
+            "field": "properties.demographics.population",
+            "min": 0
+          }
+        },
+        {
+          "id": "DEMO-002",
+          "name": "Reasonable Density",
+          "description": "Population density should be within reasonable bounds",
+          "severity": "WARNING",
+          "validation": {
+            "type": "range",
+            "field": "properties.demographics.density",
+            "min": 0,
+            "max": 100000,
+            "comment": "Max density is ~100k per sq km (e.g., Manila)"
+          }
+        },
+        {
+          "id": "DEMO-003",
+          "name": "Households vs Population",
+          "description": "Households should not exceed population",
+          "severity": "WARNING",
+          "validation": {
+            "type": "comparison",
+            "applies": "properties.demographics.population && properties.demographics.households",
+            "condition": "properties.demographics.households <= properties.demographics.population"
+          }
+        },
+        {
+          "id": "DEMO-004",
+          "name": "Non-Negative Income",
+          "description": "Median income must be non-negative",
+          "severity": "ERROR",
+          "validation": {
+            "type": "range",
+            "field": "properties.demographics.medianIncome",
+            "min": 0
+          }
+        }
+      ]
+    },
+    
+    "physical": {
+      "description": "Physical property validations",
+      "rules": [
+        {
+          "id": "PHYS-001",
+          "name": "Non-Negative Area",
+          "description": "Area must be zero or positive",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "range",
+            "field": "properties.physical.area",
+            "min": 0
+          }
+        },
+        {
+          "id": "PHYS-002",
+          "name": "Non-Negative Perimeter",
+          "description": "Perimeter must be zero or positive",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "range",
+            "field": "properties.physical.perimeter",
+            "min": 0
+          }
+        },
+        {
+          "id": "PHYS-003",
+          "name": "Reasonable Elevation",
+          "description": "Elevation should be between Dead Sea (-430m) and Mt. Everest (8849m)",
+          "severity": "WARNING",
+          "validation": {
+            "type": "range",
+            "field": "properties.physical.elevation",
+            "min": -450,
+            "max": 9000
+          }
+        },
+        {
+          "id": "PHYS-004",
+          "name": "Elevation Range Consistency",
+          "description": "Minimum elevation must be less than maximum elevation",
+          "severity": "ERROR",
+          "validation": {
+            "type": "comparison",
+            "applies": "properties.physical.elevationMin && properties.physical.elevationMax",
+            "condition": "properties.physical.elevationMin < properties.physical.elevationMax"
+          }
+        }
+      ]
+    },
+    
+    "metadata": {
+      "description": "Metadata field validations",
+      "rules": [
+        {
+          "id": "META-001",
+          "name": "Version Number",
+          "description": "Version must be a positive integer",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "range",
+            "field": "metadata.version",
+            "min": 1
+          }
+        },
+        {
+          "id": "META-002",
+          "name": "Data Source Required",
+          "description": "Data source provider must be specified",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "required",
+            "field": "metadata.source.provider"
+          }
+        },
+        {
+          "id": "META-003",
+          "name": "Ingestion Date Required",
+          "description": "Ingestion date must be recorded",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "required",
+            "field": "metadata.source.ingestionDate"
+          }
+        },
+        {
+          "id": "META-004",
+          "name": "Quality Score Range",
+          "description": "Quality scores must be between 0 and 1",
+          "severity": "ERROR",
+          "validation": {
+            "type": "range",
+            "field": "metadata.quality.completeness",
+            "min": 0,
+            "max": 1
+          }
+        },
+        {
+          "id": "META-005",
+          "name": "Quality Threshold",
+          "description": "Combined quality score must meet minimum threshold",
+          "severity": "WARNING",
+          "validation": {
+            "type": "custom",
+            "rule": "(completeness + accuracy + consistency) / 3 >= 0.90"
+          }
+        },
+        {
+          "id": "META-006",
+          "name": "Truth Governor Approval",
+          "description": "Record must be approved by Truth Governor before acceptance",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "equals",
+            "field": "metadata.governance.truthGovernorApproved",
+            "value": true
+          }
+        },
+        {
+          "id": "META-007",
+          "name": "Data Classification",
+          "description": "Data classification must be specified",
+          "severity": "ERROR",
+          "validation": {
+            "type": "enum",
+            "field": "metadata.governance.dataClassification",
+            "values": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+          }
+        }
+      ]
+    },
+    
+    "relationships": {
+      "description": "Relationship validations",
+      "rules": [
+        {
+          "id": "REL-001",
+          "name": "Valid Parent Reference",
+          "description": "Parent ID must reference an existing record",
+          "severity": "ERROR",
+          "validation": {
+            "type": "reference",
+            "field": "relationships.parentId",
+            "target": "id"
+          }
+        },
+        {
+          "id": "REL-002",
+          "name": "No Self-Reference",
+          "description": "Record cannot reference itself as parent",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "comparison",
+            "condition": "relationships.parentId !== id"
+          }
+        },
+        {
+          "id": "REL-003",
+          "name": "Circular Reference Prevention",
+          "description": "Prevent circular parent-child relationships",
+          "severity": "CRITICAL",
+          "validation": {
+            "type": "custom",
+            "rule": "detectCircularReference(id, relationships.parentId)"
+          }
+        }
+      ]
+    }
+  },
+  
+  "qualityMetrics": {
+    "description": "Data quality calculation formulas",
+    "completeness": {
+      "formula": "requiredFieldsPresent / totalRequiredFields",
+      "weight": 0.35
+    },
+    "accuracy": {
+      "formula": "validFieldsCount / totalFieldsCount",
+      "weight": 0.35
+    },
+    "consistency": {
+      "formula": "consistencyChecksPass / totalConsistencyChecks",
+      "weight": 0.30
+    },
+    "threshold": {
+      "minimum": 0.90,
+      "recommended": 0.95,
+      "excellent": 0.98
+    }
+  },
+  
+  "validationPipeline": {
+    "description": "Order of validation execution",
+    "stages": [
+      {
+        "stage": 1,
+        "name": "Schema Validation",
+        "description": "Validate against JSON Schema",
+        "failureAction": "REJECT_IMMEDIATELY"
+      },
+      {
+        "stage": 2,
+        "name": "Critical Rules",
+        "description": "Execute all CRITICAL severity rules",
+        "failureAction": "REJECT_IMMEDIATELY"
+      },
+      {
+        "stage": 3,
+        "name": "Error Rules",
+        "description": "Execute all ERROR severity rules",
+        "failureAction": "REJECT_WITH_DETAILS"
+      },
+      {
+        "stage": 4,
+        "name": "Warning Rules",
+        "description": "Execute all WARNING severity rules",
+        "failureAction": "LOG_AND_CONTINUE"
+      },
+      {
+        "stage": 5,
+        "name": "Quality Assessment",
+        "description": "Calculate quality metrics",
+        "failureAction": "LOG_SCORE"
+      },
+      {
+        "stage": 6,
+        "name": "Truth Governor",
+        "description": "Submit to Truth Governor for final approval",
+        "failureAction": "REJECT_IMMEDIATELY"
+      }
+    ]
+  }
+}
